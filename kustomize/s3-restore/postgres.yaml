@@ -1,0 +1,45 @@
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: elephant
+spec:
+  image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-14.7-0
+  postgresVersion: 14
+  users:
+    - name: postgres
+  dataSource:
+    pgbackrest:
+      stanza: db
+      configuration:
+      - secret:
+          name: pgo-s3-creds
+      global:
+        repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo1
+        repo1-s3-uri-style: path
+      repo:
+        name: repo1
+        s3:
+          bucket: "postgres"
+          endpoint: "https://minio.sodalab.dev"
+          region: "us-east-1"
+  instances:
+    - dataVolumeClaimSpec:
+        accessModes:
+        - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: 5Gi
+  backups:
+    pgbackrest:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.41-4
+      configuration:
+      - secret:
+          name: pgo-s3-creds
+      global:
+        repo1-path: /pgbackrest/postgres-operator/elephant/repo1
+      repos:
+      - name: repo1
+        s3:
+          bucket: "postgres-restore"
+          endpoint: "https://minio.sodalab.dev"
+          region: "us-east-1"

@@ -10,4 +10,3 @@ generatorOptions:
 
 resources:
 - postgres.yaml
-- configmap.yaml

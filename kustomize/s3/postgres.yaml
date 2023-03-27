@@ -3,15 +3,37 @@ kind: PostgresCluster
 metadata:
   name: hippo-s3
 spec:
+  # dataSource:
+  #   pgbackrest:
+  #     stanza: db
+  #     configuration:
+  #     - secret:
+  #         name: pgo-s3-creds
+  #     global:
+  #       repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo1
+  #       repo1-s3-uri-style: path
+  #     repo:
+  #       name: repo1
+  #       s3:
+  #         bucket: "postgres"
+  #         endpoint: "https://minio.sodalab.dev"
+  #         region: "us-east-1"
+  #     options:
+  #     - --type=time
+  #     - --target="2023-03-15 23:00:00"
   image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres:ubi8-14.7-0
   postgresVersion: 14
+  users:
+    - name: postgres
   instances:
-    - dataVolumeClaimSpec:
+    - name: instance1
+      replicas: 1
+      dataVolumeClaimSpec:
         accessModes:
         - "ReadWriteOnce"
         resources:
           requests:
-            storage: 1Gi
+            storage: 20Gi
   backups:
     pgbackrest:
       image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbackrest:ubi8-2.41-4
@@ -20,9 +42,37 @@ spec:
           name: pgo-s3-creds
       global:
         repo1-path: /pgbackrest/postgres-operator/hippo-s3/repo1
+        repo1-s3-uri-style: path
+        repo1-retention-full: "5"
+        repo1-retention-full-type: count
       repos:
       - name: repo1
         s3:
-          bucket: "<YOUR_AWS_S3_BUCKET_NAME>"
-          endpoint: "<YOUR_AWS_S3_ENDPOINT>"
-          region: "<YOUR_AWS_S3_REGION>"
+          bucket: "postgres"
+          endpoint: "https://minio.sodalab.dev"
+          region: "us-east-1"
+      manual:
+       repoName: repo1
+       options: 
+        - --type=full
+  proxy:
+    pgBouncer:
+      image: registry.developers.crunchydata.com/crunchydata/crunchy-pgbouncer:ubi8-1.18-0
+      replicas: 2
+      service:
+        type: NodePort
+        nodePort: 32345
+      # affinity:
+      #   podAntiAffinity:
+      #     preferredDuringSchedulingIgnoredDuringExecution:
+      #     - weight: 1
+      #       podAffinityTerm:
+      #         topologyKey: kubernetes.io/hostname
+      #         labelSelector:
+      #           matchLabels:
+      #             postgres-operator.crunchydata.com/cluster: hippo-s3
+      #             postgres-operator.crunchydata.com/role: pgbouncer
+  service:
+    type: NodePort
+    nodePort: 32000
+        
